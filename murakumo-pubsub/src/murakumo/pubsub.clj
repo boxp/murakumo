@@ -1,4 +1,4 @@
-(ns murakumo.murakumo-pubsub
+(ns murakumo.pubsub
   (:import (com.google.protobuf ByteString)
            (com.google.common.util.concurrent MoreExecutors)
            (com.google.api.core ApiFutures
@@ -41,6 +41,17 @@
           (TopicName/create (:project-id comp)
             (name topic-key))))))
 
+(s/fdef delete-topic
+  :args (s/cat :comp ::pubsub-subscription-component
+               :topic-key ::topic-key)
+  :ret #(instance? TopicName %))
+(defn delete-topic
+  [comp topic-key]
+  (let [topic-admin-cli (TopicAdminClient/create)]
+    (->> (TopicName/create (:project-id comp)
+                           (name topic-key))
+         (.deleteTopic topic-admin-cli))))
+
 (s/fdef create-subscription
   :args (s/cat :comp ::pubsub-subscription-component
                :topic-key ::topic-key
@@ -58,15 +69,21 @@
                              push-config
                              ack-deadline-second))))
 
-(s/def :add-subscriber-args/on-receive
-  (s/fspec
-    :args (s/cat :message #(instance? PubsubMessage %))
-    :ret nil?))
+(s/fdef delete-subscription
+  :args (s/cat :comp ::pubsub-subscription-component
+               :subscription-key ::subscription-key)
+  :ret true?)
+(defn delete-subscription
+  [comp subscription-key]
+  (let [subscription-name (SubscriptionName/create (:project-id comp) (name subscription-key))]
+    (-> (SubscriptionAdminClient/create)
+        (.deleteSubscription subscription-name))))
+
 (s/fdef add-subscriber
   :args (s/cat :comp ::pubsub-subscription-component
                :topic-key ::topic-key
                :subscription-key ::subscription-key
-               :on-receive :add-subscriber-args/on-receive)
+               :on-receive fn?)
   :ret ::pubsub-subscription-component)
 (defn add-subscriber
   [comp topic-key subscription-key on-receive]
@@ -89,7 +106,7 @@
     (-> this
         (assoc :project-id (ServiceOptions/getDefaultProjectId))))
   (stop [this]
-    (doall (map #(.stopAsync %) (:subscribers this)))
+    (doall (map #(-> % last .stopAsync) (:subscribers this)))
     (-> this
         (dissoc :project-id)
         (dissoc :subscribers))))

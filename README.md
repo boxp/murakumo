@@ -1,10 +1,10 @@
-# murakumo/murakumo-pubsub
+# murakumo
 
-A Clojure library for Google Cloud Pub/Sub.
+A Google Cloud Platform API Libraries for Clojure.
 
 ## Usage
 
-BOXP
+TBD
 
 ## License
 
